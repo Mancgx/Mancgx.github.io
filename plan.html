@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        canvas {
+            display: block;
+            margin: 0 auto;
+            border: 3px solid black;
+        }
+    </style>
+    <!-- 背景图片 -->
+    <script src="js/background.js"></script>
+    <!-- 通用精灵类 -->
+    <script src="js/style.js"></script>
+    <!-- 我方飞机 -->
+    <script src="js/myPlan.js"></script>
+    <!-- 我方飞机子弹 -->
+    <script src="js/buttle.js"></script>
+    <!-- 敌方飞机 -->
+    <script src="js/otherPlan.js"></script>
+
+</head>
+
+<body>
+    <canvas id="canvas" width="320" height="568"></canvas>
+    <script>
+        var canvas = document.getElementById('canvas');
+        var ctx = canvas.getContext('2d');
+
+        //所有创建背景精灵
+        var bgSprite1 = BgSprite();
+        bgSprite1.speedy = 8;
+        bgSprite1.width = 320;
+        bgSprite1.height = 568;
+
+        var bgSprite2 = BgSprite();
+        bgSprite2.speedy = 8;
+        bgSprite2.width = 320;
+        bgSprite2.height = 568;
+        bgSprite1.top = bgSprite2.height;
+        var BgObjArr = [bgSprite1, bgSprite2];
+
+        //创建我方飞机
+        var plan = CreateMyPlan();
+        //子弹
+        var bullet = createBullet(plan.left + 33, plan.top - 42);
+        //鼠标移动事件
+        canvas.onmousemove = function (e) {
+            var e = e || window.event;
+            plan.left = e.pageX - canvas.offsetLeft - 33;
+            plan.top = e.pageY - canvas.offsetTop - 42;
+        }
+
+
+        //游戏的总体时间轴
+        var time = 0;
+        //生成我方飞机子弹时间间隔
+        var lastCreateBulletTime = 0;
+        var bulletArr = [];
+        var bulletTime = 1;
+        //生成敌方飞机的时间间隔
+        var sEnemyTime = 50;
+        var lastCreateSenemyTime = 0;
+        var mEnemyTime = 200;
+        var lastCreateMenemyTime = 0;
+        var bEnemyTime = 400;
+        var lastCreateBenemyTime = 0;
+        var enemyArr = [];
+
+        // 游戏动画开始刷新的方法
+        function Ani() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            for (var i in BgObjArr) {
+                BgObjArr[i].paint(ctx);
+                BgObjArr[i].update(time);
+            }
+
+            //创建敌方飞机
+            if (sEnemyTime + lastCreateSenemyTime == time) {
+                enemyArr.push(CreateEnemy('s'));
+                lastCreateSenemyTime = time;
+            }
+            if (mEnemyTime + lastCreateMenemyTime == time) {
+                enemyArr.push(CreateEnemy('m'));
+                lastCreateMenemyTime = time;
+            }
+            if (bEnemyTime + lastCreateBenemyTime == time) {
+                enemyArr.push(CreateEnemy('b'));
+                lastCreateBenemyTime = time;
+            }
+
+            //绘制敌方飞机
+            for (var i in enemyArr) {
+                enemyArr[i].paint(ctx);
+                enemyArr[i].update(time);
+                if (enemyArr[i].top >= canvas.height) {
+                    enemyArr[i].visible == false;
+                    enemyArr.splice(i, 1);
+                }
+            }
+
+
+            // 创建我方飞机子弹
+            plan.paint(ctx);
+
+            // 创建我方飞机子弹
+            if (lastCreateBulletTime + bulletTime == time) {
+                var bullet = createBullet();
+                var bullet1 = createBullet();
+                var bullet2 = createBullet();
+
+                bullet.left = plan.left + plan.width;
+                bullet.top = plan.top;
+
+                bullet1.left = plan.left;
+                bullet1.top = plan.top;
+
+                bullet2.left = plan.left + plan.width / 2;
+                bullet2.top = plan.top - plan.height / 2;
+
+                bulletArr.push(bullet, bullet1, bullet2);
+                lastCreateBulletTime = time;
+            }
+            //绘制我方子弹  更新位置
+            for (var i in bulletArr) {
+                if (bulletArr[i].visible) {
+                    bulletArr[i].paint(ctx);
+                    bulletArr[i].update(time);
+                }
+                if (bulletArr[i].visible == false) {
+                    bulletArr.splice(i, 1);
+                }
+            }
+
+            for (var i = 0; i < bulletArr.length; i++) {
+                for (var j = 0; j < enemyArr.length; j++) {
+                    if (bulletArr[i].top <= enemyArr[j].top + enemyArr[j].height && bulletArr[i].left + bulletArr[i].width >= enemyArr[j].left && bulletArr[i].left <= enemyArr[j].left + enemyArr[j].width && bulletArr[i].top + bulletArr[i].height >= enemyArr[j].top) {
+                        bulletArr[i].hp = 0;
+                        // bulletArr.splice(i, 1);
+                        if (enemyArr[j].hp != 0) {
+                            enemyArr[j].hp--;
+                        }
+                    }
+                }
+            }
+
+            for (var i = 0; i < enemyArr.length; i++) {
+                if (plan.top <= enemyArr[i].top + enemyArr[i].height && plan.left <= enemyArr[i].left + enemyArr[i].width && plan.left + plan.width >= enemyArr[i].left &&plan.top+plan.height>=enemyArr[i].top) {
+                    if(plan.hp!=0){
+                        plan.hp--;
+                    }
+                }
+            }
+
+            //判断子弹和敌机碰撞
+            for (var i = 0; i < enemyArr.length; i++) {
+                if (enemyArr[i].hp == 0) {
+                    if (time % 15 == 0) {
+                        enemyArr[i].advance(ctx);
+                    }
+
+                    if (enemyArr[i].visible == false) {
+                        enemyArr.splice(i, 1);
+                    }
+                }
+            }
+            
+            // 判斷我方飛機是否和敵機相撞
+            if(plan.hp==0){
+                if(time%20==0){
+                    plan.advance(ctx);
+                    plan.visible==false;
+                }
+            }
+            // for (var k = 0; k < enemyArr.length; k++) {
+            //     if (plan.top <= enemyArr[k].top + enemyArr[k].height && plan.left + plan.width >= enemyArr[k].left && plan.left <= enemyArr[k].left + enemyArr[k].width && plan.top + plan.height >= enemyArr[k].top) {
+            //         if(plan.hp!=0){
+            //             plan.hp--;
+            //             if(plan.hp==0){
+            //                 if(time%20==0){
+            //                     plan.advance(ctx);
+            //                 }
+            //             }
+            //         }
+            //     }
+            // }
+
+            time++;
+            requestAnimationFrame(Ani);
+        }
+        window.onload = function () {
+            Ani();
+        }
+    </script>
+</body>
+
+</html>
